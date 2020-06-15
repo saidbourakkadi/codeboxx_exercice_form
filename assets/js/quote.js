@@ -1,7 +1,8 @@
 $(document).ready(function () {
     $("#numElev_2, #numElev_3, #elevPriceUnit, #elevTotal, #installationFee, #total_").attr('readonly', true);
 
-    var numApp, numFloors, numBase, maxOcc;
+    /* manque numElev */
+    var numApp, numFloors, numBase, maxOcc, numElev;
     var prodRange = {
         type: null,
         price: null,
@@ -12,10 +13,24 @@ $(document).ready(function () {
         doCalc();
     });
 
+    /* remplacer le id de  standart par standard 
+    et ajouter les 2 autre radio avec un filtre 
+    aussi il faut ajouter un critere */
+    $('#standard, #premium, #excelium').on('click', function () {
+        var radio = document.getElementsByName('radio-btn');
+        if (radio[0].checked && document.getElementById('numElev_3').value >0 ) {
+            document.getElementById('elevPriceUnit').value = (7565).toFixed(2) + " $";
+            doCalc();
+        }else if (radio[1].checked && document.getElementById('numElev_3').value >0){
+            document.getElementById('elevPriceUnit').value = (12345).toFixed(2) + " $";
+            doCalc();
 
-    $('#standart, #premium, #excelium').on('click', function () {
-        document.getElementById('elevPriceUnit').value = (7565).toFixed(2) + " $";
+        }
+        else if (radio[2].checked && document.getElementById('numElev_3').value >0){
+        document.getElementById('elevPriceUnit').value = (15400).toFixed(2) + " $";
         doCalc();
+
+        }
     });
 
     $('#residential, #commercial, #corporate, #hybrid').on('click', function () {
@@ -47,6 +62,7 @@ $(document).ready(function () {
     function getInfoMaxOcc() {
         maxOcc = $('#maxOcc').val();
     };
+    
 
     function getProdRange() {
         if ($('#standard').is(':checked')) {
@@ -57,7 +73,8 @@ $(document).ready(function () {
 
         } else if ($('#premium').is(':checked')) {
             prodRange.type = "premium";
-            prodRange.price = parseFloat(123456);
+            /* changer la valeur 123456 a 12345*/
+            prodRange.price = parseFloat(12345);
             prodRange.installationFeePercentage = 0.13;
             return prodRange;
 
@@ -80,39 +97,58 @@ $(document).ready(function () {
         getInfoNumElev();
         getInfoMaxOcc();
         getProdRange();
+        getInfoNumApp();
+        
     };
 
     function setRequiredElevatorsResult(finNumElev) {
-        $("#numElev_2, #numElev_3").val(parseFloat(finNumElev));
+        // $("#numElev_2","#numElev_3").val(parseInt(finNumElev)); changer en les separant
+        console.log("total elevator a chequer "+finNumElev);
+        $("#numElev_2").val(parseInt(finNumElev));
+        $("#numElev_3").val(parseInt(finNumElev));
     };
 
     function setPricesResults(finNumElev, roughTotal, installFee, total) {
         $("#elevTotal").val(parseFloat(roughTotal).toFixed(2) + " $");
         $("#installationFee").val(parseFloat(installFee).toFixed(2) + " $");
         $("#total_").val(parseFloat(total).toFixed(2) + " $");
+        
     };
 
     function emptyElevatorsNumberAndPricesFields() {
         $('#numElev_3').val('');
         $('.priceField').val('');
+        $('#numElev_2').val(''); // ajouter pour effacer le champs "N of Elevator" lorsqu un mandatoire est effacé
+        $('#elevPriceUnit').val('');
+        
+        $('.productRangeBtn').prop('checked', false); // ajouter pour effacer les bouton radio et les calcul si on supprime n importe quel champs
     };
-
+    
     function createFormData(projectType) {
         return {
             numberApp: numApp,
             numberFloors: numFloors,
             numberBase: numBase,
             maximumOcc: maxOcc,
+            /* ajouter numberElev pour permettre le calcul commercial */
+            numberElev : numElev,
             productRange: prodRange,
             projectType: projectType
         }
     };
+    
 
     function negativeValues() {
-        if ($('#numApp').val() < 0) {
+        if ($('#numApp').val() < 0 ) {
+
+            alert("Please enter a positive number!");''
+            $('#numApp').val('');
+            return true
+        // ajouter pour eviter le negatif
+        } else if ($('#numFloors').val() < 0) { 
 
             alert("Please enter a positive number!");
-            $('#numApp').val('');
+            $('#numFloors').val('');
             return true
 
         } else if ($('#numBase').val() < 0) {
@@ -156,11 +192,14 @@ $(document).ready(function () {
     };
 
     function apiCall(projectType) {
+        
+        
         //Getting numbers from quote
         GetInfos();
 
         //Preparing data for Api call
         formData = createFormData(projectType)
+        console.log(formData);
 
         $.ajax({
             type: "POST",
@@ -177,14 +216,17 @@ $(document).ready(function () {
             }
         });
     }
-    
+    /* remplacer apiCall('commercial') par corporate */
     function doCalc() {
         if ($('#residential').hasClass('active') && !negativeValues() && $('#numApp').val() && $('#numFloors').val()) {
             apiCall('residential')
-        } else if ($('#commercial').hasClass('active') && !negativeValues() && $('#numElev').val()  && $('#numPark').val()) {
+        } else if ($('#commercial').hasClass('active') && !negativeValues() && $('#numElev').val()) {
             apiCall('commercial')
         } else if ($('#corporate').hasClass('active') && !negativeValues() && $('#numFloors').val() && $('#numBase').val() && $('#maxOcc').val()) {
-            apiCall('commercial')
+            apiCall('corporate')
+            // dupliquer le corporate pour permettre le calcul de l hybrid
+        }  else if ($('#hybrid').hasClass('active') && !negativeValues() && $('#numFloors').val() && $('#numBase').val() && $('#maxOcc').val()) {
+            apiCall('corporate')
         } else {
             emptyElevatorsNumberAndPricesFields();
         };
